@@ -1,0 +1,103 @@
+---
+title: "MTH6139 Time Series" 
+subtitle: "Heathrow Passenger Traffic" 
+author: "Jamie Stephenson" 
+date: "Spring term 2025" 
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: darkly 
+    highlight: zenburn
+---
+ 
+```{r, echo=FALSE}
+# This code will display the QMUL logo at the top right of the page
+htmltools::img(src = knitr::image_uri("images/QMlogo.png"),
+               alt = 'logo',
+               style = 'position:absolute; top:0; right:0; padding:10px; width:20%;')
+```
+
+# Section 1: Introduction and Initial Data
+This project will explore the time series of monthly passenger traffic at Heathrow between 2005 and 2025. Data has been collected from the Heathrow website. The project uses Meta's Prophet forecasting system to see the estimated growth of passenger numbers at Heathrow, comparing the prediction taking into account data for the Coronavirus Pandemic and the prediction without that data.
+
+## 1.1 Loading the data
+The first step involves loading the data from Excel into R. This is done as follows:
+```{r}
+library(readxl) # This allows the read_excel function to be used in the next line
+Heathrow_Traffic = read_excel("data/Heathrow-Traffic.xlsx") # This reads the data into a dataframe
+head(Heathrow_Traffic)
+```
+
+As the values are greater than a million it is more helpful to divide all the data by a million to make it easier to view in plots.
+```{r}
+Heathrow_Traffic$Passengers=Heathrow_Traffic$Passengers/1000000 # Divied the Passenger numbers by 1000000
+```
+## 1.2 Analysis of the data
+Now we can plot the data to help visulaise it.
+
+```{r}
+Month=c(Heathrow_Traffic$Month) # Takes the months data from the orignal and creates its own vector
+Passengers = c(Heathrow_Traffic$Passengers) # Takes the passengers data from the orignal and creates its own vector
+plot(Month,Passengers,type="o",xlab = "Date",ylab = "Passengers in Millions")
+```
+
+This data shows that generally each year follows a similar pattern however there is a significant drop at 2020 which was caused by the Coronavirus Pandemic.
+
+## 1.3 Creating a time series
+The next step is to covert the data into a time series. This is done as follows:
+```{r}
+Heathrow_Traffic_ts = ts(Passengers,start=c(2005,1) ,end =c(2025,2), frequency = 12) # This takes the vector of Passengers and informs the start and end dates. The frequency is the amount of times per year the data is recorded, in this case, monthly.
+plot(Heathrow_Traffic_ts, ylab = "Passengers in Millions") # Very similar to the previous plot, however it removes the circles for each data point.
+```
+
+## 1.4 Decomposing the time series
+To help understand the time series, we can decompose it to view the underlying elements.
+```{r}
+Heathrow_Traffic_ts_decomposition = stats::decompose(Heathrow_Traffic_ts)
+plot(Heathrow_Traffic_ts_decomposition)
+```
+
+The general trend is slight growth if we ignore the massive drop that was caused by the Coronavirus Pandemic. Interestingly, the seasonality remained similar even throughout that period. The errors are spread around zero which is good. Again the errors massively increase around 2020 but this is down to the Coronavirus Pandemic.
+
+# Section 2: Using Meta's Prophet
+Now we have the time series, we can use Meta's Prophet to predict the passenger numbers in the future. In this project we can do two predictions. One using the data until the Coronavirus Pandemic and another using all the data.
+
+## 2.1 Prediction of passenger levels using data from 2005-2020
+The first forecast to perform is based on the data before the Coronavirus Pandemic. We can use this to compare the predicted levels for the years between 2020-2025 with the recorded levels to see the impact the pandemic had.
+```{r message=FALSE}
+library(prophet) # Firstly we need the library to be able to use Meta's Prohpet's functions
+Heathrow_Traffic_Without_Covid.df = data.frame(
+    ds=zoo::as.yearmon(time(Heathrow_Traffic_ts)[1:180]),
+    y=Passengers[1:180]) # Prohpet requires the data in this form. The[1:180] takes only the data up until 2020 (before the pandemic).
+Heathrow_Traffic_Without_Covid_Model=prophet(Heathrow_Traffic_Without_Covid.df)
+Heathrow_Traffic_Without_Covid_Model_Prediction=make_future_dataframe(Heathrow_Traffic_Without_Covid_Model,periods=120,freq="month") #This predicts the future 120 months, up until 2030
+Heathrow_Traffic_Without_Covid_Model_Combination=predict(Heathrow_Traffic_Without_Covid_Model,Heathrow_Traffic_Without_Covid_Model_Prediction)
+plot(Heathrow_Traffic_Without_Covid_Model,Heathrow_Traffic_Without_Covid_Model_Combination,xlabel = "date",ylabel = "Passengers in Millions")
+```
+
+The data is shown by the black dots. And the blue is the Prophet model and its prediction.
+
+## 2.2 Prediction of passenger levels using all the data (2005-2025)
+The second forecast uses all the data, using the same code as above except for different variable names and removing the [1:180] so that all the data is used.
+```{r echo=FALSE,message=FALSE} 
+Heathrow_Traffic_With_Covid.df = data.frame(
+    ds=zoo::as.yearmon(time(Heathrow_Traffic_ts)),
+    y=Passengers)
+Heathrow_Traffic_With_Covid_Model=prophet(Heathrow_Traffic_With_Covid.df)
+Heathrow_Traffic_With_Covid_Model_Prediction=make_future_dataframe(Heathrow_Traffic_With_Covid_Model,periods=60,freq="month")
+Heathrow_Traffic_With_Covid_Model_Combination=predict(Heathrow_Traffic_With_Covid_Model,Heathrow_Traffic_With_Covid_Model_Prediction)
+plot(Heathrow_Traffic_With_Covid_Model,Heathrow_Traffic_With_Covid_Model_Combination,xlabel = "date",ylabel = "Passengers in Millions")
+```
+
+## 2.3 Conclusion
+Overall the first plot shows that without the massive downturn in passengers caused by the Coronavirus Pandemic, the growth Heathrow was experiencing would have led to passenger levels being about 7 million for the first month of 2025. This is a significant difference compared to about 6 million according to the recorded data and shows the impact that the pandemic had.
+
+Looking at the second plot it suggests a very slight decrease in the numbers of passengers at Heathrow in the future. However this is again caused by the drop in numbers during the pandemic impacting the models prediction. 
+
+The last 2 years show similar growth to the years before the pandemic, which suggests that the growth shown on the first plot is probably the more accurate prediction albeit the data is starting from lower values. However more real world events can impact this such as reaching the capacity that Heathrow currently offers and the possibility of a solution to this being Heathrow getting a third runway. Depending on the maximum capacity of Heathrow, the data for the growth suggests that a decision on the third runway had to be made.
+
+
+# References
+
+- Heathrow (for the data): <https://www.heathrow.com/company/investor-centre/>
