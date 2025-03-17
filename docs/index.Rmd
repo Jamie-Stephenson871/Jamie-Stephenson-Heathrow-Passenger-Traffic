@@ -1,6 +1,5 @@
 ---
-title: "MTH6139 Time Series" 
-subtitle: "Heathrow Passenger Traffic" 
+title: "Heathrow Passenger Traffic" 
 author: "Jamie Stephenson" 
 date: "Spring term 2025" 
 output: 
